@@ -66,10 +66,10 @@ extension String: SourceKitObjectConvertible {
 // MARK: - SourceKitObject
 
 /// Swift representation of sourcekitd_object_t
-public struct SourceKitObject {
+public final class SourceKitObject {
     public let sourcekitdObject: sourcekitd_object_t?
 
-    public init(_ sourcekitdObject: sourcekitd_object_t) {
+    public init(_ sourcekitdObject: sourcekitd_object_t?) {
         self.sourcekitdObject = sourcekitdObject
     }
 
@@ -93,6 +93,11 @@ public struct SourceKitObject {
     public func updateValue<T>(_ value: SourceKitObjectConvertible, forKey key: T) where T: RawRepresentable, T.RawValue == String {
         updateValue(value, forKey: UID(key.rawValue))
     }
+    
+    deinit {
+        guard let o = sourcekitdObject else { return }
+        sourcekitd_request_release(o)
+    }
 }
 
 extension SourceKitObject: SourceKitObjectConvertible {}
@@ -107,27 +112,27 @@ extension SourceKitObject: CustomStringConvertible {
 }
 
 extension SourceKitObject: ExpressibleByArrayLiteral {
-    public init(arrayLiteral elements: SourceKitObject...) {
-        sourcekitdObject = elements.sourcekitdObject
+    public convenience init(arrayLiteral elements: SourceKitObject...) {
+        self.init(elements.sourcekitdObject)
     }
 }
 
 extension SourceKitObject: ExpressibleByDictionaryLiteral {
-    public init(dictionaryLiteral elements: (UID, SourceKitObjectConvertible)...) {
+    public convenience init(dictionaryLiteral elements: (UID, SourceKitObjectConvertible)...) {
         let keys: [sourcekitd_uid_t?] = elements.map { $0.0.uid }
         let values: [sourcekitd_object_t?] = elements.map { $0.1.sourcekitdObject }
-        sourcekitdObject = sourcekitd_request_dictionary_create(keys, values, elements.count)
+        self.init(sourcekitd_request_dictionary_create(keys, values, elements.count))
     }
 }
 
 extension SourceKitObject: ExpressibleByIntegerLiteral {
-    public init(integerLiteral value: IntegerLiteralType) {
-        sourcekitdObject = value.sourcekitdObject
+    public convenience init(integerLiteral value: IntegerLiteralType) {
+        self.init(value.sourcekitdObject)
     }
 }
 
 extension SourceKitObject: ExpressibleByStringLiteral {
-    public init(stringLiteral value: StringLiteralType) {
-       sourcekitdObject = value.sourcekitdObject
+    public convenience init(stringLiteral value: StringLiteralType) {
+       self.init(value.sourcekitdObject)
     }
 }
